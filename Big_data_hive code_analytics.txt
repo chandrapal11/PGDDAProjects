@@ -1,0 +1,304 @@
+CREATE EXTERNAL TABLE IF NOT EXISTS Yellow_taxi_112017(
+        VendorID STRING, 
+        tpep_pickup_datetime timestamp,
+        tpep_dropoff_datetime timestamp,
+        passenger_count INT,
+        trip_distance DECIMAL, 
+        RatecodeID INT,
+        store_and_fwd_flag STRING,
+        PULocationID DECIMAL,
+        DOLocationID DECIMAL,
+        payment_type INT,
+        fare_amount DECIMAL,
+        extra DECIMAL,
+        mta_tax DECIMAL,
+        tip_amount DECIMAL,
+        tolls_amount DECIMAL,
+        improvement_surcharge DECIMAL,
+        total_amount    DECIMAL )
+    COMMENT 'Data about yellow taxi in  11-2017 from a public database'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' 
+    location 's3://rm67972/datascience';
+
+
+CREATE EXTERNAL TABLE IF NOT EXISTS Yellow_taxi_122017(
+        VendorID STRING, 
+        tpep_pickup_datetime timestamp,
+        tpep_dropoff_datetime timestamp,
+        passenger_count INT,
+        trip_distance DECIMAL, 
+        RatecodeID INT,
+        store_and_fwd_flag STRING,
+        PULocationID DECIMAL,
+        DOLocationID DECIMAL,
+        payment_type INT,
+        fare_amount DECIMAL,
+        extra DECIMAL,
+        mta_tax DECIMAL,
+        tip_amount DECIMAL,
+        tolls_amount DECIMAL,
+        improvement_surcharge DECIMAL,
+        total_amount    DECIMAL )
+    COMMENT 'Data about yellow taxi in  12-2017 from a public database'
+    ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' 
+    location 's3://rm67972/datascience2';
+
+
+CREATE EXTERNAL TABLE IF NOT EXISTS Yellow_taxi LIKE Yellow_taxi_122017;
+ INSERT INTO yellow_taxi SELECT * FROM yellow_taxi_112017;
+    select * FROM yellow_taxi LIMIT 20;
+    INSERT INTO yellow_taxi SELECT * FROM yellow_taxi_122017;
+
+select distinct(vendorid) from yellow_taxi ;
+select vendorid FROM yellow_taxi where vendorid="VendorID";
+
+---
+
+
+answer:
+passenger_count having null value.
+RatecodeID having incorrect id -- 99
+fare_amount is negative -- need to treat it
+-Vendorid is having vendorid value.
+-first line is null .so it needs to be removed.
+vendorid
+ 	vendorid
+1	1
+2	2
+3	
+4	VendorID
+
+
+
+select count(vendorid),vendorid from Yellow_taxi_122017 group by vendorid order by vendorid;
+
+1	
+2	4258254 	1
+3	5250022 	2
+4	1	        VendorID
+
+select count(vendorid),vendorid from Yellow_taxi_112017 group by vendorid order by vendorid;
+1	
+2	4188895	        1
+3	5095908	        2
+4	1	      VendorID
+
+
+select count(vendorid),vendorid from Yellow_taxi group by vendorid order by vendorid;
+
+2	
+2	8447149  	1
+3	10345930	2
+4	2	        VendorID
+
+
+-we need to remove the row VendorID from column vendorid
+
+
+--
+
+ select distinct passenger_count  from Yellow_taxi;
+we find one NULL value in table
+
+querying it
+
+select * from yellow_taxi where passenger_count is null;
+
+yellow_taxi.vendorid	yellow_taxi.tpep_pickup_datetime	yellow_taxi.tpep_dropoff_datetime	yellow_taxi.passenger_count	yellow_taxi.trip_distance	yellow_taxi.ratecodeid	yellow_taxi.store_and_fwd_flag	yellow_taxi.pulocationid	yellow_taxi.dolocationid	yellow_taxi.payment_type	yellow_taxi.fare_amount	yellow_taxi.extra	yellow_taxi.mta_tax	yellow_taxi.tip_amount	yellow_taxi.tolls_amount	yellow_taxi.improvement_surcharge	yellow_taxi.total_amount
+ 	yellow_taxi.vendorid	yellow_taxi.tpep_pickup_datetime	yellow_taxi.tpep_dropoff_datetime	yellow_taxi.passenger_count	yellow_taxi.trip_distance	yellow_taxi.ratecodeid	yellow_taxi.store_and_fwd_flag	yellow_taxi.pulocationid	yellow_taxi.dolocationid	yellow_taxi.payment_type	yellow_taxi.fare_amount	yellow_taxi.extra	yellow_taxi.mta_tax	yellow_taxi.tip_amount	yellow_taxi.tolls_amount	yellow_taxi.improvement_surcharge	yellow_taxi.total_amount
+1	VendorID	NULL	NULL	NULL	NULL	NULL	store_and_fwd_flag	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+2		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+3	VendorID	NULL	NULL	NULL	NULL	NULL	store_and_fwd_flag	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+4		NULL	NULL	NULL
+
+
+we see all rows are null so we can now delete the rows .
+
+delete from Yellow_taxi where passenger_count is null;
+
+-checking for other column trip distance
+
+select * from yellow_taxi where trip_distance is null;
+we find same rows here which corresponds to passenger_count;
+
+--we can see NULL values in passenger count.
+
+-
+select distinct RatecodeID from yellow_taxi;
+ratecodeid
+ 	ratecodeid
+1	5
+2	6
+3	4
+4	1
+5	3
+6	NULL
+7	2
+8	99
+
+select * from yellow_taxi where ratecodeid is null;
+ratecodeid is having value 99 which is wrong
+select count(*) from yellow_taxi where ratecodeid = 99;
+
+we find 178 rows-
+
+checking on rows we found that vendor 1 is providing more wrong info.
+
+select count(vendorid) as vendorcount,vendorid from yellow_taxi where ratecodeid = 99 group by vendorid order by vendorid;
+
+vendorcount	vendorid
+ 	vendorcount	vendorid
+1	172	1
+2	6	2
+
+so we find that vendor 1 is providing wrong info.
+
+so we delete the data
+CREATE TABLE tmp AS SELECT * from yellow_taxi where passenger_count is  not null;
+select * from tmp where passenger_count is null;
+so no results so we are good.
+
+--now moving ahead with more analysis---
+
+select DISTINCT store_and_fwd_flag from tmp;
+select DISTINCT pulocationid from tmp;
+select DISTINCT dolocationid from tmp;
+select DISTINCT payment_type from tmp;
+select DISTINCT fare_amount from tmp;
+select DISTINCT extra from tmp;
+select DISTINCT mta_tax from tmp;
+select DISTINCT tip_amount from tmp;
+select DISTINCT tolls_amount from tmp;
+select DISTINCT improvement_surcharge from tmp;
+select DISTINCT total_amount from tmp;
+
+
+
+--fare amount is negative .So we need to see which vendor has made fare amount as negative--
+
+select * from tmp where fare_amount < 0;
+
+select vendorid,count(fare_amount) from tmp where fare_amount < 0 group by vendorid order by vendorid ;
+select * from tmp where fare_amount < 0;
+
+--we find 9367  rows of data where fare amount is negative all pertaining to vendor 2.so vendor 2 is providing more wrong values.---
+
+--
+-extra charges are also negative--
+select vendorid,count(extra) from tmp where extra < 0 group by vendorid order by vendorid ;
+vendorid	_c1
+ 	vendorid	_c1
+1	1	8
+2	2	4826
+
+
+
+----mta_tax is negative--
+
+
+select DISTINCT mta_tax from tmp;
+select vendorid,count(mta_tax) as mta_tax from tmp where mta_tax < 0 group by vendorid order by vendorid ;
+
+vendorid	mta_tax
+ 	vendorid	mta_tax
+1	2	9092
+--so here we also see that vendor 2 is showing wrong records--
+
+
+-----tip amount analysis-
+
+
+select DISTINCT tip_amount from tmp;
+select vendorid,count(tip_amount) as tip_amount_count_negative from tmp where tip_amount < 0 group by vendorid order by vendorid ;
+
+vendorid	tip_amount_count_negative
+ 	vendorid	tip_amount_count_negative
+1	2	94
+
+
+--here also we see that vendor 2 is providing wrong info--
+
+---analysis on tolls amount-
+
+
+select DISTINCT tolls_amount from tmp;
+select vendorid,count(tolls_amount) as tolls_amount_count_negative from tmp where tolls_amount < 0 group by vendorid order by vendorid ;
+
+vendorid	tolls_amount_count_negative
+ 	vendorid	tolls_amount_count_negative
+1	2	41
+
+
+-here also vendor 2 has provided wrong info---
+
+
+---analysis on total amount---
+
+select DISTINCT total_amount from tmp;
+select vendorid,count(total_amount) as totalamount_count_negative from tmp where total_amount < 0 group by vendorid order by vendorid ;
+
+
+vendorid	totalamount_count_negative
+ 	vendorid	totalamount_count_negative
+1	2	9369
+
+
+---final conclusion of data quality checks--
+
+so we see overall vendor 2 has provided negative values for total amount,tip amount,tolls amount,extra charges,fare amount,mta_tax
+while vendor 1 has provided wrong values only for ratecodeid.
+since negative values has more emphasis and leads to wrong calculations we conclude that vendor 2 is giving wrong info.
+
+
+-------end of data quality check----
+
+--we now should delete all rows which has negative values---
+
+create table tmp2 as select * from tmp where fare_amount >= 0  ;
+create table tmp3 as select * from tmp2 where tip_amount >=0 ;
+create table tmp4 as select * from tmp3 where mta_tax >=0 ;
+create table tmp5 as select * from tmp4 where tolls_amount >=0 ;
+create table tmp6 as select * from tmp5 where total_amount >=0;
+create table tmp7 as select * from tmp6 where  extra >=0  ;
+create table yellow_taxi_final as select * from tmp7 where  ratecodeid != 99 ;
+
+
+tip_amount >=0 or mta_tax >=0 or tolls_amount >=0 or total_amount >=0 or extra >=0 or ratecodeid != 99;
+
+
+
+
+analysis 1:
+select avg(fare_amount) from yellow_trp_dec_partiton_by_dolocationid
+12.935207415098143
+
+select avg(fare_amount) from yellow_trp_nov_partiton_by_dolocationid
+13.140853039100529
+
+
+
+select passenger_count,count(*)  from yellow_taxi 
+ group by passenger_count;
+
+
+select payment_type,count(*)  from yellow_taxi  group by payment_type;
+
+select percentile(size(split(reviewtext, ' ')), 0.75)
+
+select percentile(bigint(tip_amount), 0.50) from yellow_taxi
+
+select percentile(bigint(tip_amount), 0.75) from yellow_taxi
+
+
+select percentile(bigint(tip_amount), 0.25) from yellow_taxi
+
+select avg(tip_amount) from yellow_taxi
+
+
+select count(*),VendorID,extra from yellow_taxi by VendorID,extra desc;
+
+
+
+select corr(passenger_count, tip_amount) from yellow_taxi
+
+select passenger_count,tip_amount from yellow_taxi group by passenger_count,tip_amount
