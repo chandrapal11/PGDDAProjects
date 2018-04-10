@@ -1,0 +1,59 @@
+#### Import data in R Uber data in data frame.
+uber <- read.csv("Uber Request Data.csv")
+
+#### Formatting all character column in Lower case
+uber$Pickup.point <- tolower(uber$Pickup.point)
+uber$Status <- tolower(uber$Status)
+
+#### Derived new column Request_date after formatting Request.timestamp column.
+c <- format(as.POSIXct(uber$Request.timestamp, format="%d-%m-%Y %H:%M:%S"), format="%d-%m-%Y")
+d <- format(as.POSIXct(uber$Request.timestamp, format="%d/%m/%Y %H:%M"), format="%d-%m-%Y")
+c[is.na(c)] <- d[!is.na(d)]
+uber$request_date <- c
+#### Derived new column request_time to get specific time of request from Request.timestamp column.
+c<- as.numeric(format(as.POSIXct(uber$Request.timestamp, format="%d/%m/%Y %H:%M"), format="%H"))
+d<- as.numeric(format(as.POSIXct(uber$Request.timestamp, format="%d-%m-%Y %H:%M:%S"), format="%H"))
+c[is.na(c)] <- d[!is.na(d)]
+uber$request_time <- c
+View(uber)
+#### Derived new column time_slot grouping time slot in early morning,morning,evening ... etc
+
+uber$time_slot<-ifelse(uber$request_time >= 00 & uber$request_time <= 5,"Early_Morning",
+                       ifelse(uber$request_time >= 6 & uber$request_time <= 12,"Morning",
+                              ifelse(uber$request_time>=13 & uber$request_time <= 15,"Afternoon",
+                                     ifelse(uber$request_time>=16 & uber$request_time <=18,"Evening",
+                                            ifelse(uber$request_time>=19 & uber$request_time<=20,"Night",
+                                                   ifelse(uber$request_time>=21 & uber$request_time <=23,"Late_Night","other"
+                                                   ))))))
+#Question1
+##### Filtering data for finding pressing problems cancelled or no cars available.
+
+df <- subset(uber, Status != "trip completed")
+df <- subset(df,select = c("Pickup.point","Status","time_slot"))
+df <- df %>% group_by(Status)
+
+#####   Ploting graph to visualise the frequency of requests that get cancelled or show 'no cars available.
+### Graph showing no of cars cancelled or unavilable during different time slot.
+ggplot(df, aes(x = Status)) +  geom_bar() +   geom_text(stat='count',aes(label=..count..),vjust=0.5) + labs(y=" No of journey", x = "Booking status") + facet_wrap(~time_slot)
+###### Graph showing problematic area is airport time slot are night and evening when cars are not available.
+ggplot(df)+ geom_bar(aes(x = Status,fill=time_slot), position = 'stack') +  facet_wrap(~Pickup.point) +labs(y=" No of journey", x = "Booking status") 
+
+
+#Question 2
+##### Filtering data to find out the gap between supply and demand
+df <- uber
+df <- subset(df,select = c("Pickup.point","Status","time_slot"))
+###### Derived new column Demand_Supply to find out no of request fulfilled and unfulfilled.
+df$Demand_Supply<-ifelse(uber$Status == 'trip completed',"fullfill",
+                         ifelse(uber$Status == 'cancelled',"fullfill",
+                                ifelse(uber$Status == 'no cars available',"unfulfilled","other"
+                                )))
+##### Ploting graph to find out the gap between supply and demand
+
+#### Graph showing no of request fullfill and unfulfilled during different time slot.Evening and Night together is time slot when cabs were unavailable.
+ggplot(df, aes(x = Demand_Supply)) +  geom_bar() +   geom_text(stat='count',aes(label=..count..),vjust=0.5) + labs(y=" No of journey", x = "Booking status") + facet_wrap(~time_slot)
+
+
+###### Graph showing from airport to city cars were not available most of time during evening and night.
+ggplot(data=df, aes(x=Demand_Supply,fill=time_slot),position = 'stack') +  geom_bar()  +  facet_wrap(~`Pickup.point`) + 
+  geom_text(stat='count',aes(label=abs(..count..)),size = 3, hjust = 0.5, position = position_stack(vjust = 0.5))
